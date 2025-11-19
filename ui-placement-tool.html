@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎯 UI Placement Tool - Universal Design Assistant</title>
+  <meta name="description" content="Universal UI placement and measurement tool for any web application. Overlay grid, capture coordinates, place elements, and export specifications.">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: transparent !important;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    #app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: transparent !important;
+    }
+
+    .iframe-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .iframe-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .grid-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+      background: transparent !important;
+    }
+
+    .grid-active {
+      pointer-events: all;
+      cursor: crosshair;
+    }
+
+    .element-preview {
+      position: absolute;
+      border: 2px dashed rgba(255, 107, 157, 0.8);
+      background: rgba(255, 107, 157, 0.2);
+      padding: 8px;
+      border-radius: 4px;
+      cursor: move;
+      pointer-events: all;
+      user-select: none;
+      transition: border-color 0.2s;
+      z-index: 10000;
+    }
+
+    .element-preview:hover {
+      border-color: rgba(255, 215, 0, 0.8);
+    }
+
+    .element-preview.selected {
+      border: 3px solid #ffd700;
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+    }
+
+    .panel {
+      position: fixed;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.95);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 107, 157, 0.6);
+      border-radius: 8px;
+      color: white;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 11px;
+      z-index: 10000;
+    }
+
+    .panel-title {
+      color: #ff6b9d;
+      font-weight: bold;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+
+    .info-panel {
+      top: 10px;
+      left: 10px;
+      max-width: 280px;
+    }
+
+    .properties-panel {
+      top: 10px;
+      right: 10px;
+      width: 320px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .control-bar {
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      padding: 12px 20px;
+    }
+
+    button {
+      padding: 8px 16px;
+      border: 2px solid;
+      border-radius: 6px;
+      background: rgba(255, 107, 157, 0.3);
+      border-color: rgba(255, 107, 157, 0.6);
+      color: white;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: bold;
+      font-family: 'Monaco', monospace;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: rgba(255, 107, 157, 0.5);
+      transform: scale(1.05);
+    }
+
+    button.primary {
+      background: rgba(0, 255, 0, 0.3);
+      border-color: rgba(0, 255, 0, 0.6);
+    }
+
+    button.danger {
+      background: rgba(255, 0, 0, 0.3);
+      border-color: rgba(255, 0, 0, 0.6);
+    }
+
+    button.active {
+      background: rgba(255, 215, 0, 0.3);
+      border-color: rgba(255, 215, 0, 0.6);
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 107, 157, 0.4);
+      border-radius: 4px;
+      color: white;
+      font-size: 11px;
+      font-family: 'Monaco', monospace;
+    }
+
+    input[type="range"] {
+      cursor: pointer;
+    }
+
+    input[type="color"] {
+      height: 32px;
+      cursor: pointer;
+    }
+
+    input[type="number"] {
+      padding: 8px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 4px;
+      color: #ff6b9d;
+      font-size: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.98);
+      backdrop-filter: blur(20px);
+      border: 3px solid rgba(255, 215, 0, 0.8);
+      border-radius: 12px;
+      color: white;
+      font-family: 'Monaco', monospace;
+      z-index: 10001;
+      width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .asset-grid {
+      display: grid;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .asset-button {
+      padding: 12px;
+      background: rgba(255, 107, 157, 0.2);
+      border: 2px solid rgba(255, 107, 157, 0.4);
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .asset-button:hover {
+      background: rgba(255, 107, 157, 0.4);
+      border-color: rgba(255, 215, 0, 0.8);
+    }
+
+    .safe-area {
+      position: fixed;
+      pointer-events: none;
+      background: rgba(255, 0, 0, 0.05);
+      border: 1px dashed rgba(255, 0, 0, 0.3);
+      z-index: 9998;
+    }
+
+    .safe-area-top {
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      border-bottom: 1px dashed rgba(255, 0, 0, 0.3);
+    }
+
+    .safe-area-bottom {
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 34px;
+      border-top: 1px dashed rgba(255, 0, 0, 0.3);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .welcome-screen {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: white;
+      z-index: 10002;
+      padding: 40px;
+      background: rgba(0, 0, 0, 0.95);
+      border-radius: 20px;
+      border: 3px solid rgba(255, 215, 0, 0.8);
+      max-width: 700px;
+    }
+
+    .welcome-screen h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+
+    .welcome-screen p {
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 12px;
+      opacity: 0.9;
+    }
+
+    .welcome-screen button {
+      margin-top: 24px;
+      padding: 12px 32px;
+      font-size: 14px;
+    }
+
+    .url-presets {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .preset-btn {
+      padding: 6px 12px;
+      font-size: 11px;
+      background: rgba(255, 107, 157, 0.2);
+      border: 1px solid rgba(255, 107, 157, 0.4);
+      border-radius: 4px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .preset-btn:hover {
+      background: rgba(255, 107, 157, 0.4);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Welcome Screen -->
+    <div id="welcomeScreen" class="welcome-screen">
+      <h1>🎯 UI Placement Tool</h1>
+      <p><strong>Universal Design Assistant</strong></p>
+      <p>Overlay measurement grid on any web application</p>
+
+      <div style="margin-top: 20px; padding: 16px; background: rgba(255,215,0,0.1); border-radius: 8px;">
+        <p style="font-size: 14px; margin-bottom: 12px;"><strong>📋 How to Use:</strong></p>
+        <ol style="text-align: left; font-size: 13px; line-height: 1.8; padding-left: 20px; max-width: 500px; margin: 0 auto;">
+          <li>Enter your app URL below (localhost or live site)</li>
+          <li>Click "Start Designing" to load it</li>
+          <li>Press <strong>G</strong> to toggle the measurement grid</li>
+          <li>Click anywhere to capture coordinates</li>
+          <li>Press <strong>M</strong> to switch to placement mode</li>
+          <li>Press <strong>E</strong> to export full specification</li>
+        </ol>
+      </div>
+
+      <div style="margin-top: 20px;">
+        <input type="text" id="gameUrl"
+          placeholder="Enter your app URL (e.g., http://localhost:3000)"
+          style="width: 100%; padding: 12px; font-size: 14px; border-radius: 6px;
+                 background: rgba(255,255,255,0.1); border: 2px solid rgba(255,107,157,0.6);
+                 color: white; font-family: 'Monaco', monospace;">
+
+        <div class="url-presets">
+          <button class="preset-btn" onclick="document.getElementById('gameUrl').value = 'http://localhost:3000'">React (3000)</button>
+          <button class="preset-btn" onclick="document.getElementById('gameUrl').value = 'http://localhost:5173'">Vite (5173)</button>
+          <button class="preset-btn" onclick="document.getElementById('gameUrl').value = 'http://localhost:8080'">Vue (8080)</button>
+          <button class="preset-btn" onclick="document.getElementById('gameUrl').value = 'http://localhost:4200'">Angular (4200)</button>
+          <button class="preset-btn" onclick="document.getElementById('gameUrl').value = 'http://localhost:5175'">Custom (5175)</button>
+        </div>
+      </div>
+
+      <div style="margin-top: 20px; padding: 12px; background: rgba(100,200,255,0.1); border-radius: 6px;">
+        <p style="font-size: 13px; margin-bottom: 8px;"><strong>💡 Pro Tips:</strong></p>
+        <ul style="text-align: left; font-size: 12px; line-height: 1.6; padding-left: 20px; max-width: 500px; margin: 0 auto;">
+          <li>Works with any web app (React, Vue, Angular, etc.)</li>
+          <li>Grid spacing: 50px (adjustable in code)</li>
+          <li>All coordinates auto-copy to clipboard</li>
+          <li>Export generates Claude-ready specifications</li>
+          <li>Safe areas shown for mobile notches</li>
+        </ul>
+      </div>
+
+      <p style="margin-top: 20px; font-size: 14px;">
+        <strong>Keyboard Shortcuts:</strong><br>
+        <code style="background: rgba(255,215,0,0.2); padding: 2px 6px; border-radius: 3px;">G</code> = Toggle grid
+        <code style="background: rgba(255,215,0,0.2); padding: 2px 6px; border-radius: 3px;">M</code> = Switch modes
+        <code style="background: rgba(255,215,0,0.2); padding: 2px 6px; border-radius: 3px;">E</code> = Export
+        <code style="background: rgba(255,215,0,0.2); padding: 2px 6px; border-radius: 3px;">ESC</code> = Hide
+      </p>
+
+      <button class="primary" onclick="app.loadGame()">🚀 Start Designing</button>
+
+      <p style="margin-top: 20px; font-size: 11px; opacity: 0.6;">
+        Universal UI Placement Tool • No dependencies • Works anywhere<br>
+        Created by BlackLove AI Lab • Free to use and share
+      </p>
+    </div>
+
+    <!-- Game/App IFrame (behind overlay) -->
+    <div id="iframeContainer" class="iframe-container hidden"></div>
+
+    <!-- Grid SVG Overlay -->
+    <svg id="gridSvg" width="100%" height="100%" class="grid-overlay hidden">
+      <!-- Grid lines will be drawn here -->
+    </svg>
+
+    <!-- Placed Elements Container -->
+    <div id="elementsContainer"></div>
+
+    <!-- Safe Area Indicators -->
+    <div id="safeAreas" class="hidden">
+      <div class="safe-area safe-area-top"></div>
+      <div class="safe-area safe-area-bottom"></div>
+    </div>
+
+    <!-- Info Panel -->
+    <div id="infoPanel" class="panel info-panel hidden">
+      <div class="panel-title">🎯 UI PLACEMENT TOOL</div>
+      <div id="infoContent"></div>
+    </div>
+
+    <!-- Properties Panel -->
+    <div id="propertiesPanel" class="panel properties-panel hidden"></div>
+
+    <!-- Control Bar -->
+    <div id="controlBar" class="panel control-bar hidden"></div>
+
+    <!-- Asset Browser Modal -->
+    <div id="assetBrowser" class="modal hidden"></div>
+  </div>
+
+  <script>
+    const app = {
+      mode: 'coordinates',
+      isVisible: false,
+      elements: [],
+      selectedElement: null,
+      coordinates: [],
+      pendingPlacement: null,
+      gridSpacing: 50, // Change this to adjust grid spacing
+      gameLoaded: false,
+
+      // Customize these assets for your project
+      assets: [
+        { name: 'UI Counter', file: 'counter.png', category: 'UI' },
+        { name: 'Button', file: 'button.png', category: 'UI' },
+        { name: 'Icon', file: 'icon.png', category: 'UI' },
+        { name: 'Panel', file: 'panel.png', category: 'UI' },
+        { name: 'Header', file: 'header.png', category: 'Layout' },
+        { name: 'Footer', file: 'footer.png', category: 'Layout' },
+        { name: 'Sidebar', file: 'sidebar.png', category: 'Layout' },
+        { name: 'Modal', file: 'modal.png', category: 'UI' },
+        { name: 'Text Element', file: 'text-only', category: 'Text' },
+        { name: 'Custom Element', file: 'custom', category: 'Custom' },
+      ],
+
+      init() {
+        this.setupEventListeners();
+        this.render();
+        this.loadFromLocalStorage();
+      },
+
+      loadGame() {
+        const url = document.getElementById('gameUrl').value.trim();
+        if (!url) {
+          alert('⚠️ Please enter a valid URL');
+          return;
+        }
+
+        // Save URL to localStorage for next time
+        localStorage.setItem('uiPlacementTool_lastUrl', url);
+
+        const container = document.getElementById('iframeContainer');
+        container.innerHTML = `<iframe src="${url}" allow="autoplay; fullscreen"></iframe>`;
+        container.classList.remove('hidden');
+
+        document.getElementById('welcomeScreen').classList.add('hidden');
+        this.gameLoaded = true;
+
+        // Auto-show grid after 1 second
+        setTimeout(() => {
+          this.toggle();
+        }, 1000);
+      },
+
+      loadFromLocalStorage() {
+        // Load last URL
+        const lastUrl = localStorage.getItem('uiPlacementTool_lastUrl');
+        if (lastUrl) {
+          document.getElementById('gameUrl').value = lastUrl;
+        }
+
+        // Load saved elements
+        const savedElements = localStorage.getItem('uiPlacementTool_elements');
+        if (savedElements) {
+          try {
+            this.elements = JSON.parse(savedElements);
+          } catch (e) {
+            console.warn('Failed to load saved elements:', e);
+          }
+        }
+      },
+
+      saveToLocalStorage() {
+        localStorage.setItem('uiPlacementTool_elements', JSON.stringify(this.elements));
+      },
+
+      setupEventListeners() {
+        document.addEventListener('keydown', (e) => {
+          if (e.key.toLowerCase() === 'g' && !e.ctrlKey && !e.metaKey && this.gameLoaded) {
+            e.preventDefault();
+            this.toggle();
+          }
+          if (e.key.toLowerCase() === 'm' && this.isVisible && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            this.toggleMode();
+          }
+          if (e.key.toLowerCase() === 'e' && this.isVisible && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            this.exportSpec();
+          }
+          if (e.key === 'Escape' && this.isVisible) {
+            e.preventDefault();
+            this.toggle();
+          }
+        });
+
+        document.getElementById('gridSvg').addEventListener('click', (e) => {
+          if (!this.isVisible) return;
+          this.handleClick(e.clientX, e.clientY);
+        });
+      },
+
+      toggle() {
+        this.isVisible = !this.isVisible;
+        const gridSvg = document.getElementById('gridSvg');
+
+        if (this.isVisible) {
+          gridSvg.classList.add('grid-active');
+        } else {
+          gridSvg.classList.remove('grid-active');
+        }
+
+        this.render();
+      },
+
+      toggleMode() {
+        this.mode = this.mode === 'coordinates' ? 'placement' : 'coordinates';
+        this.render();
+      },
+
+      handleClick(x, y) {
+        if (this.mode === 'coordinates') {
+          this.captureCoordinate(x, y);
+        } else if (this.mode === 'placement') {
+          this.pendingPlacement = { x: Math.round(x), y: Math.round(y) };
+          this.showAssetBrowser();
+        }
+      },
+
+      captureCoordinate(x, y) {
+        const coord = { x: Math.round(x), y: Math.round(y), timestamp: Date.now() };
+        this.coordinates.push(coord);
+        if (this.coordinates.length > 10) this.coordinates.shift();
+
+        const coordText = `x=${coord.x}, y=${coord.y}`;
+        navigator.clipboard.writeText(coordText);
+        console.log(`📍 Coordinates copied: ${coordText}`);
+
+        this.render();
+      },
+
+      placeElement(asset) {
+        if (!this.pendingPlacement) return;
+
+        const element = {
+          id: `el-${Date.now()}`,
+          name: asset.name,
+          asset: asset.file,
+          x: this.pendingPlacement.x,
+          y: this.pendingPlacement.y,
+          anchor: 'cc',
+          width: 'auto',
+          height: 'auto',
+          scale: 1.0,
+          layer: 1000,
+          notes: '',
+          timestamp: Date.now()
+        };
+
+        if (asset.file === 'text-only') {
+          element.textStyle = {
+            fontSize: '24px',
+            fontWeight: 'bold',
+            color: '#FFFFFF',
+            stroke: '#000000',
+            strokeThickness: 4
+          };
+        }
+
+        this.elements.push(element);
+        this.selectedElement = element;
+        this.pendingPlacement = null;
+        this.hideAssetBrowser();
+        this.saveToLocalStorage();
+        this.render();
+      },
+
+      updateElement(updates) {
+        if (!this.selectedElement) return;
+
+        Object.assign(this.selectedElement, updates);
+        const index = this.elements.findIndex(el => el.id === this.selectedElement.id);
+        if (index !== -1) {
+          this.elements[index] = this.selectedElement;
+        }
+        this.saveToLocalStorage();
+        this.render();
+      },
+
+      deleteElement(id) {
+        this.elements = this.elements.filter(el => el.id !== id);
+        if (this.selectedElement?.id === id) {
+          this.selectedElement = null;
+        }
+        this.saveToLocalStorage();
+        this.render();
+      },
+
+      clearAll() {
+        if (!confirm('⚠️ Clear all elements? This cannot be undone.')) return;
+        this.coordinates = [];
+        this.elements = [];
+        this.selectedElement = null;
+        this.saveToLocalStorage();
+        this.render();
+      },
+
+      exportSpec() {
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
+
+        let spec = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+UI PLACEMENT SPECIFICATION
+Generated: ${new Date().toLocaleString()}
+Screen Size: ${screenWidth}x${screenHeight}
+Tool: Universal UI Placement Tool
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+`;
+
+        if (this.elements.length === 0) {
+          spec += `No elements placed yet. Use Placement Mode (press M) to add UI elements.\n`;
+        }
+
+        this.elements.forEach((el, idx) => {
+          spec += `
+ELEMENT ${idx + 1}: ${el.name}
+ASSET: ${el.asset}
+POSITION: x=${el.x}, y=${el.y}, anchor=${el.anchor}
+SIZE: width=${el.width}, height=${el.height}, scale=${el.scale}
+LAYER: ${el.layer}
+`;
+
+          if (el.textStyle) {
+            spec += `TEXT STYLE: fontSize=${el.textStyle.fontSize}, fontWeight=${el.textStyle.fontWeight}, color=${el.textStyle.color}, stroke=${el.textStyle.stroke}, strokeThickness=${el.textStyle.strokeThickness}
+`;
+          }
+
+          if (el.notes) {
+            spec += `NOTES: ${el.notes}
+`;
+          }
+
+          spec += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`;
+        });
+
+        // Add recent coordinates
+        if (this.coordinates.length > 0) {
+          spec += `\nRECENT COORDINATES (last ${this.coordinates.length} clicks):\n`;
+          this.coordinates.forEach((coord, idx) => {
+            spec += `${idx + 1}. x=${coord.x}, y=${coord.y}\n`;
+          });
+        }
+
+        navigator.clipboard.writeText(spec);
+        alert(`✅ UI Specification copied to clipboard!\n\n${this.elements.length} elements + ${this.coordinates.length} coordinates\n\nPaste to Claude or your notes to implement.`);
+      },
+
+      showAssetBrowser() {
+        const modal = document.getElementById('assetBrowser');
+        modal.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div style="color: #ffd700; font-weight: bold; font-size: 14px;">🎨 CHOOSE ELEMENT TYPE</div>
+            <button class="danger" onclick="app.hideAssetBrowser()">✕</button>
+          </div>
+          <p style="font-size: 11px; opacity: 0.7; margin-bottom: 12px;">
+            Select the type of UI element to place at (${this.pendingPlacement.x}, ${this.pendingPlacement.y})
+          </p>
+          <div class="asset-grid">
+            ${this.assets.map(asset => `
+              <button class="asset-button" onclick='app.placeElement(${JSON.stringify(asset)})'>
+                <div>
+                  <div style="font-weight: bold; margin-bottom: 4px;">${asset.name}</div>
+                  <div style="font-size: 9px; opacity: 0.7;">${asset.file}</div>
+                </div>
+                <div style="font-size: 9px; opacity: 0.6;">${asset.category}</div>
+              </button>
+            `).join('')}
+          </div>
+        `;
+        modal.classList.remove('hidden');
+      },
+
+      hideAssetBrowser() {
+        document.getElementById('assetBrowser').classList.add('hidden');
+      },
+
+      render() {
+        const gridSvg = document.getElementById('gridSvg');
+        const infoPanel = document.getElementById('infoPanel');
+        const controlBar = document.getElementById('controlBar');
+        const safeAreas = document.getElementById('safeAreas');
+
+        if (!this.isVisible) {
+          gridSvg.classList.add('hidden');
+          infoPanel.classList.add('hidden');
+          controlBar.classList.add('hidden');
+          safeAreas.classList.add('hidden');
+          document.getElementById('propertiesPanel').classList.add('hidden');
+          return;
+        }
+
+        gridSvg.classList.remove('hidden');
+        infoPanel.classList.remove('hidden');
+        controlBar.classList.remove('hidden');
+        safeAreas.classList.remove('hidden');
+
+        this.renderGrid();
+        this.renderInfoPanel();
+        this.renderControlBar();
+        this.renderPropertiesPanel();
+        this.renderElements();
+      },
+
+      renderGrid() {
+        const svg = document.getElementById('gridSvg');
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        const verticalLines = Math.ceil(width / this.gridSpacing);
+        const horizontalLines = Math.ceil(height / this.gridSpacing);
+
+        let gridHtml = '';
+
+        // Vertical lines
+        for (let i = 0; i <= verticalLines; i++) {
+          const x = i * this.gridSpacing;
+          const isMajor = i % 2 === 0;
+          gridHtml += `
+            <line x1="${x}" y1="0" x2="${x}" y2="${height}"
+              stroke="${isMajor ? 'rgba(255,107,157,0.5)' : 'rgba(255,107,157,0.25)'}"
+              stroke-width="${isMajor ? 2 : 1}"
+              stroke-dasharray="${isMajor ? '0' : '5,5'}" />
+            ${isMajor ? `<text x="${x+5}" y="20" fill="rgba(255,215,0,1)" font-size="11px" font-family="monospace" font-weight="bold" style="text-shadow: 1px 1px 2px black;">${x}</text>` : ''}
+          `;
+        }
+
+        // Horizontal lines
+        for (let i = 0; i <= horizontalLines; i++) {
+          const y = i * this.gridSpacing;
+          const isMajor = i % 2 === 0;
+          gridHtml += `
+            <line x1="0" y1="${y}" x2="${width}" y2="${y}"
+              stroke="${isMajor ? 'rgba(255,107,157,0.5)' : 'rgba(255,107,157,0.25)'}"
+              stroke-width="${isMajor ? 2 : 1}"
+              stroke-dasharray="${isMajor ? '0' : '5,5'}" />
+            ${isMajor ? `<text x="5" y="${y+15}" fill="rgba(255,215,0,1)" font-size="11px" font-family="monospace" font-weight="bold" style="text-shadow: 1px 1px 2px black;">${y}</text>` : ''}
+          `;
+        }
+
+        // Center crosshairs
+        const centerX = Math.round(width / 2);
+        const centerY = Math.round(height / 2);
+
+        gridHtml += `
+          <line x1="${centerX}" y1="0" x2="${centerX}" y2="${height}"
+            stroke="rgba(255,215,0,0.7)" stroke-width="3" stroke-dasharray="10,5" />
+          <line x1="0" y1="${centerY}" x2="${width}" y2="${centerY}"
+            stroke="rgba(255,215,0,0.7)" stroke-width="3" stroke-dasharray="10,5" />
+
+          <text x="${centerX + 10}" y="25" fill="rgba(255,215,0,1)" font-size="13px" font-family="monospace" font-weight="bold"
+                style="text-shadow: 2px 2px 4px black;">CENTER X: ${centerX}</text>
+          <text x="10" y="${centerY + 25}" fill="rgba(255,215,0,1)" font-size="13px" font-family="monospace" font-weight="bold"
+                style="text-shadow: 2px 2px 4px black;">CENTER Y: ${centerY}</text>
+        `;
+
+        // Recent coordinates
+        this.coordinates.forEach((coord, idx) => {
+          const opacity = (idx + 1) / this.coordinates.length;
+          gridHtml += `
+            <circle cx="${coord.x}" cy="${coord.y}" r="8"
+              fill="rgba(255,215,0,${opacity * 0.5})"
+              stroke="rgba(255,215,0,${opacity})"
+              stroke-width="2" />
+            <text x="${coord.x + 15}" y="${coord.y + 5}"
+              fill="rgba(255,215,0,${opacity})"
+              font-size="10px" font-family="monospace" font-weight="bold"
+              style="text-shadow: 1px 1px 2px black;">
+              (${coord.x}, ${coord.y})
+            </text>
+          `;
+        });
+
+        svg.innerHTML = gridHtml;
+      },
+
+      renderInfoPanel() {
+        const content = document.getElementById('infoContent');
+        const lastCoord = this.coordinates[this.coordinates.length - 1];
+
+        content.innerHTML = `
+          <div style="color: #ffd700; margin-bottom: 8px; font-size: 12px;">
+            Mode: ${this.mode === 'coordinates' ? '📍 Coordinates' : '🎨 Placement'}
+          </div>
+          <div style="font-size: 11px;">📐 Screen: ${window.innerWidth}×${window.innerHeight}px</div>
+          <div style="font-size: 11px;">📦 Elements: ${this.elements.length}</div>
+          <div style="font-size: 11px;">🎯 Grid: ${this.gridSpacing}px spacing</div>
+          ${lastCoord ? `
+            <div style="margin-top: 8px; padding: 8px; background: rgba(255,215,0,0.1); border-radius: 4px;">
+              <div style="color: #ffd700; font-size: 10px;">Last Click:</div>
+              <div style="font-size: 12px; font-weight: bold;">x=${lastCoord.x}, y=${lastCoord.y}</div>
+              <div style="font-size: 9px; opacity: 0.7; margin-top: 4px;">✓ Copied to clipboard</div>
+            </div>
+          ` : ''}
+          <div style="margin-top: 12px; font-size: 10px; opacity: 0.8; line-height: 1.6;">
+            <div>⌨️ <strong>G</strong> = Toggle Grid</div>
+            <div>⌨️ <strong>M</strong> = Switch Mode</div>
+            <div>⌨️ <strong>E</strong> = Export Spec</div>
+            <div>⌨️ <strong>ESC</strong> = Hide Tool</div>
+            <div style="color: #ffd700; margin-top: 6px; font-weight: bold;">
+              ${this.mode === 'placement' ? '👆 Click to place element' : '👆 Click to capture coordinates'}
+            </div>
+          </div>
+        `;
+      },
+
+      renderControlBar() {
+        const bar = document.getElementById('controlBar');
+        bar.innerHTML = `
+          <button class="${this.mode === 'placement' ? 'active' : ''}" onclick="app.toggleMode()">
+            ${this.mode === 'placement' ? '🎨 Placement Mode' : '📍 Coordinate Mode'}
+          </button>
+          <button class="primary" onclick="app.exportSpec()">
+            📤 Export Spec ${this.elements.length > 0 ? `(${this.elements.length})` : ''}
+          </button>
+          ${this.elements.length > 0 ? `
+            <button class="danger" onclick="app.clearAll()">🗑️ Clear All</button>
+          ` : ''}
+        `;
+      },
+
+      renderPropertiesPanel() {
+        const panel = document.getElementById('propertiesPanel');
+
+        if (!this.selectedElement || this.mode !== 'placement') {
+          panel.classList.add('hidden');
+          return;
+        }
+
+        panel.classList.remove('hidden');
+        const el = this.selectedElement;
+
+        panel.innerHTML = `
+          <div class="panel-title">⚙️ ELEMENT PROPERTIES</div>
+
+          <div class="form-group">
+            <label>Name:</label>
+            <input type="text" value="${el.name}" onchange="app.updateElement({name: this.value})">
+          </div>
+
+          <div class="form-group">
+            <label>Position:</label>
+            <div class="grid-2">
+              <div>
+                <input type="number" value="${el.x}" onchange="app.updateElement({x: Number(this.value)})" placeholder="X">
+              </div>
+              <div>
+                <input type="number" value="${el.y}" onchange="app.updateElement({y: Number(this.value)})" placeholder="Y">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Anchor:</label>
+            <select value="${el.anchor}" onchange="app.updateElement({anchor: this.value})">
+              <option value="tl">tl - Top-Left</option>
+              <option value="tc">tc - Top-Center</option>
+              <option value="tr">tr - Top-Right</option>
+              <option value="cl">cl - Center-Left</option>
+              <option value="cc" selected>cc - Center-Center</option>
+              <option value="cr">cr - Center-Right</option>
+              <option value="bl">bl - Bottom-Left</option>
+              <option value="bc">bc - Bottom-Center</option>
+              <option value="br">br - Bottom-Right</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Scale: ${el.scale.toFixed(1)}× (${Math.round(el.scale * 100)}%)</label>
+            <input type="range" min="0.1" max="3" step="0.1" value="${el.scale}"
+              oninput="app.updateElement({scale: Number(this.value)})">
+          </div>
+
+          <div class="form-group">
+            <label>Layer (z-index):</label>
+            <input type="number" value="${el.layer}" onchange="app.updateElement({layer: Number(this.value)})">
+          </div>
+
+          ${el.textStyle ? `
+            <div class="panel-title" style="margin-top: 16px;">📝 TEXT STYLING</div>
+
+            <div class="form-group">
+              <label>Font Size:</label>
+              <input type="text" value="${el.textStyle.fontSize}"
+                onchange="app.updateElement({textStyle: {...app.selectedElement.textStyle, fontSize: this.value}})">
+            </div>
+
+            <div class="form-group">
+              <label>Font Weight:</label>
+              <select value="${el.textStyle.fontWeight}"
+                onchange="app.updateElement({textStyle: {...app.selectedElement.textStyle, fontWeight: this.value}})">
+                <option value="normal">Normal</option>
+                <option value="bold">Bold</option>
+                <option value="600">Semi-Bold (600)</option>
+                <option value="800">Extra-Bold (800)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Text Color:</label>
+              <input type="color" value="${el.textStyle.color}"
+                onchange="app.updateElement({textStyle: {...app.selectedElement.textStyle, color: this.value}})">
+            </div>
+
+            <div class="form-group">
+              <label>Stroke Color:</label>
+              <input type="color" value="${el.textStyle.stroke}"
+                onchange="app.updateElement({textStyle: {...app.selectedElement.textStyle, stroke: this.value}})">
+            </div>
+
+            <div class="form-group">
+              <label>Stroke Thickness: ${el.textStyle.strokeThickness}px</label>
+              <input type="range" min="0" max="10" step="1" value="${el.textStyle.strokeThickness}"
+                oninput="app.updateElement({textStyle: {...app.selectedElement.textStyle, strokeThickness: Number(this.value)}})">
+            </div>
+          ` : ''}
+
+          <div class="form-group">
+            <label>Notes:</label>
+            <textarea rows="3" onchange="app.updateElement({notes: this.value})" placeholder="Add implementation notes...">${el.notes}</textarea>
+          </div>
+
+          <button class="danger" style="width: 100%;" onclick="app.deleteElement('${el.id}')">
+            🗑️ Delete Element
+          </button>
+        `;
+      },
+
+      renderElements() {
+        const container = document.getElementById('elementsContainer');
+        container.innerHTML = this.elements.map(el => {
+          const isSelected = this.selectedElement?.id === el.id;
+          const transform = this.getTransform(el.anchor, el.scale);
+
+          return `
+            <div class="element-preview ${isSelected ? 'selected' : ''}"
+              style="left: ${el.x}px; top: ${el.y}px; transform: ${transform}; z-index: ${el.layer};
+                     font-size: ${el.textStyle?.fontSize || '12px'};
+                     font-weight: ${el.textStyle?.fontWeight || 'normal'};
+                     color: ${el.textStyle?.color || '#FFFFFF'};"
+              onclick="app.selectElement('${el.id}')">
+              <div style="font-size: 10px; opacity: 0.7; margin-bottom: 4px;">${el.name}</div>
+              <div style="font-size: 10px;">${el.asset === 'text-only' ? '📝 Text' : `🖼️ ${el.asset}`}</div>
+              <div style="font-size: 8px; margin-top: 4px;">(${el.x}, ${el.y}) • ${el.anchor} • ×${el.scale}</div>
+            </div>
+          `;
+        }).join('');
+      },
+
+      selectElement(id) {
+        this.selectedElement = this.elements.find(el => el.id === id);
+        this.render();
+      },
+
+      getTransform(anchor, scale) {
+        const transforms = {
+          tl: `translate(0, 0) scale(${scale})`,
+          tc: `translate(-50%, 0) scale(${scale})`,
+          tr: `translate(-100%, 0) scale(${scale})`,
+          cl: `translate(0, -50%) scale(${scale})`,
+          cc: `translate(-50%, -50%) scale(${scale})`,
+          cr: `translate(-100%, -50%) scale(${scale})`,
+          bl: `translate(0, -100%) scale(${scale})`,
+          bc: `translate(-50%, -100%) scale(${scale})`,
+          br: `translate(-100%, -100%) scale(${scale})`,
+        };
+        return transforms[anchor] || transforms.cc;
+      }
+    };
+
+    // Initialize app
+    app.init();
+  </script>
+</body>
+</html>
